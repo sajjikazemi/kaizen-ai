@@ -1,0 +1,13 @@
+name: sample-dotnet-project
+# This file documents the shape; in practice prefer one *.eval.yaml file per
+# case under an `evals/` directory (see schema.py `EvalSuite.load`).
+cases:
+  - id: build-succeeds
+    description: The solution builds without errors.
+    command: ["dotnet", "build"]
+    expect_exit_code: 0
+
+  - id: unit-tests-pass
+    description: All unit tests pass.
+    command: ["dotnet", "test"]
+    expect_exit_code: 0

@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "kaizen_ai"
+version = "0.1.0"
+description = "MCP-native agent framework for closed-loop, self-improving software testing and maintenance."
+authors = ["Sajjad Kazemi <sajjadkazemi.e@gmail.com>"]
+readme = "README.md"
+packages = [{ include = "kaizen", from = "src" }]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+claude-agent-sdk = "^0.1"
+pydantic = "^2.9"
+pyyaml = "^6.0"
+click = "^8.1"
+rich = "^13.9"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3"
+pytest-asyncio = "^0.24"
+ruff = "^0.7"
+
+[tool.poetry.scripts]
+kaizen = "kaizen.cli:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

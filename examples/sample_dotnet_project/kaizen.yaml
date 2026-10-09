@@ -1,0 +1,27 @@
+# Example kaizen.yaml for a target .NET project.
+#
+# Place a copy of this file at the root of each project you want Kaizen to
+# run against, then: `kaizen run --config kaizen.yaml`
+project_name: sample-dotnet-project
+repo_path: /home/sajji/proj/SomeDotnetRepo
+eval_suite_path: evals/example-suite.yaml
+
+adapter:
+  name: dotnet
+  build_command: ["dotnet", "build"]
+  test_command: ["dotnet", "test"]
+
+# Only needed for task_prompt-style eval cases that drive the project
+# through its own MCP server rather than a shell command.
+mcp_server:
+  command: dotnet
+  args: ["run", "--project", "src/SomeDotnetRepo.McpServer"]
+  cwd: /home/sajji/proj/SomeDotnetRepo
+
+gate:
+  base_branch: main
+  branch_prefix: kaizen/fix
+  require_review_for: [tier_2_code, tier_3_locked]
+  auto_apply_tiers: []   # empty = every PR needs a human, even tier 1
+
+trace_store_path: .kaizen/traces.jsonl
