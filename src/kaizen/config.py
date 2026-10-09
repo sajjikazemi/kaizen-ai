@@ -80,9 +80,13 @@ class AzureModelConfig(BaseModel):
     # Reasoning models (e.g. the gpt-6/gpt-5.6 family) reject function/tool
     # calls on the Chat Completions endpoint when a reasoning_effort is set
     # ("Function tools with reasoning_effort are not supported ... use
-    # /v1/responses"). True routes through the Responses API instead, which
-    # supports both. Kaizen's Fixer/Runner always use tool calls, so this
-    # defaults on; set False only if a deployment doesn't support it.
+    # /v1/responses"). True routes through Azure's Responses API instead,
+    # which lives on a separate, versionless "v1" surface
+    # (`{endpoint}/openai/v1/`) with its own AAD token audience
+    # (https://ai.azure.com/.default) - handled for you in azure_model.py.
+    # Kaizen's Fixer/Runner always use tool calls, so this defaults on; set
+    # False only for a deployment that doesn't support/need it (falls back
+    # to the classic dated `api-version=...` Chat Completions surface).
     use_responses_api: bool = True
 
 
