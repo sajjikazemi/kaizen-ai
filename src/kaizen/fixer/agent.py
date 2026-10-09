@@ -80,9 +80,9 @@ class FixerAgent:
     def _run_fix_agent(self, prompt: str) -> list[str]:
         import anyio
 
-        from kaizen.fixer.claude_fix import run_fix_session
+        from kaizen.fixer.fixer_graph import run_fix_session
 
-        return anyio.run(run_fix_session, prompt, self.config.repo_path)
+        return anyio.run(run_fix_session, prompt, self.config)
 
     def verify(self, plan: PatchPlan, case_command: list[str] | None) -> PatchPlan:
         if case_command is None:

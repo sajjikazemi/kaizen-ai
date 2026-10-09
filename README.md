@@ -75,6 +75,47 @@ et al. 2009; Rothermel & Harrold 1996; Yoo & Harman 2012; Cochran 1977).
 | 2 — code | application source code | always required |
 | 3 — locked | secrets, infra, CI/CD config | Fixer may never modify |
 
+## Agent runtime: LangGraph (provider-agnostic)
+
+Runner and Fixer are built on **LangGraph** (via `langchain.agents.create_agent`),
+not a single vendor's SDK — `kaizen.yaml` selects each role's model with a
+plain `"provider:model"` string (`model.runner_model`, `model.fixer_model`),
+so Anthropic, OpenAI, Bedrock, or a local model are all a one-line config
+change, not a code change.
+
+- **Runner** connects to the target's MCP server via `langchain-mcp-adapters`
+  and drives `task_prompt` eval cases with whatever model you configure
+  (a cheap/fast one is usually enough here).
+- **Fixer** uses `Read`/`Write`/`Edit`/`Bash` tools (`fixer/tools.py`), with
+  Tier-3 paths hard-blocked in the tool itself, and Tier-2 (application code)
+  writes gated through LangGraph's `HumanInTheLoopMiddleware` — an approval
+  pause *in addition to* the PR review that always happens afterward.
+
+### Where do the reports/tables actually show up?
+
+- **CLI** (`kaizen run` / `kaizen fix` / `kaizen evaluate`) — pretty `rich`
+  tables, including the treatment/control McNemar report. This is the
+  primary place to read results.
+- **Pull request body** — the same verdict/tier summary, as markdown, so
+  reviewers see it without touching a terminal.
+- **LangGraph Studio** (see below) is *not* a reporting dashboard — it shows
+  live graph execution/state (useful for watching/approving an in-flight
+  Tier-2 edit), not a rendered evaluation table. The raw report data is
+  attached to the graph's state so it's inspectable there too, but the
+  table itself lives in the CLI and the PR.
+
+### Running LangGraph Studio
+
+```bash
+cp .env.example .env        # fill in ANTHROPIC_API_KEY / OPENAI_API_KEY etc.
+export KAIZEN_CONFIG=/path/to/your/project/kaizen.yaml   # optional, defaults to the bundled example
+poetry run langgraph dev
+```
+This opens LangGraph Studio against the **Fixer** graph (`kaizen.graphs:fixer_graph`,
+declared in `langgraph.json`) — you can send it a prompt, watch each tool
+call, and approve/reject Tier-2 code edits visually instead of (or in
+addition to) the CLI's `y/N` prompt.
+
 ## Development
 
 ```bash
@@ -84,7 +125,7 @@ poetry run pytest
 
 ## Status
 
-Early scaffold. Core pieces (eval schema, trace store, .NET adapter, tiering,
-PR gate) are implemented and tested; the Runner/Fixer agent LLM integration
-uses the [Claude Agent SDK](https://pypi.org/project/claude-agent-sdk/) and
-is ready to exercise end-to-end once pointed at a real target project.
+Core pieces (eval schema, trace store, .NET adapter, tiering, PR gate,
+treatment/control evaluation, LangGraph-based Runner/Fixer agents, Studio
+wiring) are implemented and tested. Ready to exercise end-to-end once
+pointed at a real target project with API keys configured.

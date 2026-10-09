@@ -56,6 +56,17 @@ class GateConfig(BaseModel):
     branch_prefix: str = "kaizen/fix"
 
 
+class ModelConfig(BaseModel):
+    """Per-role model selection, provider-agnostic via LangChain's
+    ``"provider:model"`` string format (e.g. ``"anthropic:claude-sonnet-4-5"``,
+    ``"openai:gpt-4.1"``, ``"ollama:llama3.1"``). Lets the cheap Runner role
+    and the stronger Fixer role use different models/providers.
+    """
+
+    runner_model: str = "anthropic:claude-haiku-4-5"
+    fixer_model: str = "anthropic:claude-sonnet-4-5"
+
+
 class KaizenConfig(BaseModel):
     project_name: str
     repo_path: str
@@ -63,6 +74,7 @@ class KaizenConfig(BaseModel):
     mcp_server: McpServerConfig | None = None
     adapter: AdapterConfig = Field(default_factory=AdapterConfig)
     gate: GateConfig = Field(default_factory=GateConfig)
+    model: ModelConfig = Field(default_factory=ModelConfig)
     trace_store_path: str = ".kaizen/traces.jsonl"
 
     @classmethod

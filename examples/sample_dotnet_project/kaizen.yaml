@@ -24,4 +24,10 @@ gate:
   require_review_for: [tier_2_code, tier_3_locked]
   auto_apply_tiers: []   # empty = every PR needs a human, even tier 1
 
+# Provider-agnostic: "provider:model" (LangChain init_chat_model convention).
+# Swap Anthropic for OpenAI/Bedrock/a local model with no code changes.
+model:
+  runner_model: anthropic:claude-haiku-4-5   # cheap/fast - just drives MCP tool calls
+  fixer_model: anthropic:claude-sonnet-4-5   # stronger - writes the actual patch
+
 trace_store_path: .kaizen/traces.jsonl

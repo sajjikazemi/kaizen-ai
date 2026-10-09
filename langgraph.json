@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "fixer": "kaizen.graphs:fixer_graph"
+  },
+  "env": ".env"
+}

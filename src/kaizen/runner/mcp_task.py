@@ -1,7 +1,8 @@
 """Executes one task_prompt eval case against the target's MCP server.
 
-Isolated in its own module so the Claude Agent SDK import stays lazy/optional
-(command-only setups shouldn't need it installed).
+Provider-agnostic: `config.model.runner_model` is a ``"provider:model"``
+string, so the Runner (which typically only needs to drive tool calls, not
+reason deeply) can use a cheap/fast model independent of the Fixer's model.
 """
 from __future__ import annotations
 
@@ -10,17 +11,13 @@ from kaizen.evals.schema import EvalCase
 
 
 async def run_mcp_task(case: EvalCase, config: KaizenConfig) -> tuple[str, bool, list[str]]:
-    """Runs ``case.task_prompt`` through Claude, connected to the target MCP server.
+    """Runs ``case.task_prompt`` through a LangGraph agent connected to the
+    target's MCP server.
 
     Returns (full_text_output, success, raw_tool_errors).
     """
-    from claude_agent_sdk import (
-        AssistantMessage,
-        ClaudeAgentOptions,
-        ClaudeSDKClient,
-        ResultMessage,
-        TextBlock,
-    )
+    from langchain.agents import create_agent
+    from langchain_mcp_adapters.client import MultiServerMCPClient
 
     if config.mcp_server is None:
         raise ValueError(
@@ -28,39 +25,31 @@ async def run_mcp_task(case: EvalCase, config: KaizenConfig) -> tuple[str, bool,
             f"in kaizen.yaml for project {config.project_name!r}"
         )
 
-    mcp_servers = {
-        "target": {
-            "type": "stdio",
-            "command": config.mcp_server.command,
-            "args": config.mcp_server.args,
-            "env": config.mcp_server.env,
+    client = MultiServerMCPClient(
+        {
+            "target": {
+                "command": config.mcp_server.command,
+                "args": config.mcp_server.args,
+                "env": config.mcp_server.env,
+                "transport": "stdio",
+            }
         }
-    }
-
-    options = ClaudeAgentOptions(
-        mcp_servers=mcp_servers,
-        cwd=config.mcp_server.cwd or config.repo_path,
-        permission_mode="default",  # never auto-accept destructive actions
-        max_turns=10,
     )
+    tools = await client.get_tools()
+    agent = create_agent(config.model.runner_model, tools)
 
-    text_chunks: list[str] = []
     tool_errors: list[str] = []
-    success = False
+    result = await agent.ainvoke({"messages": [{"role": "user", "content": case.task_prompt}]})
 
-    async with ClaudeSDKClient(options=options) as client:
-        await client.query(case.task_prompt)
-        async for message in client.receive_response():
-            if isinstance(message, AssistantMessage):
-                for block in message.content:
-                    if isinstance(block, TextBlock):
-                        text_chunks.append(block.text)
-            elif isinstance(message, ResultMessage):
-                success = not message.is_error
-                if message.is_error:
-                    tool_errors.append(str(message.result))
+    messages = result.get("messages", [])
+    text_chunks = [m.content for m in messages if getattr(m, "type", None) == "ai" and isinstance(m.content, str)]
+    for m in messages:
+        if getattr(m, "type", None) == "tool" and getattr(m, "status", None) == "error":
+            tool_errors.append(str(m.content))
 
     full_text = "\n".join(text_chunks)
+    success = not tool_errors
     if case.expect_output_contains:
         success = success and all(needle in full_text for needle in case.expect_output_contains)
     return full_text, success, tool_errors
+
