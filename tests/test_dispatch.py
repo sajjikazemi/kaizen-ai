@@ -87,3 +87,31 @@ async def test_runner_dispatch_routes_to_langgraph_backend_by_default(monkeypatc
     )
     await runner_dispatch.run_mcp_task(_case(), _config("langgraph"))
     assert called["backend"] == "langgraph"
+
+
+def test_open_chat_session_routes_to_copilot_cli_class(monkeypatch):
+    class FakeSession:
+        def __init__(self, config, session_id=None):
+            self.config = config
+            self.session_id = session_id
+
+    monkeypatch.setattr(
+        "kaizen.fixer.backends.copilot_cli_backend.CopilotCliFixerSession", FakeSession
+    )
+    session = fixer_dispatch.open_chat_session(_config("copilot_cli"), session_id="abc")
+    assert isinstance(session, FakeSession)
+    assert session.session_id == "abc"
+
+
+def test_open_chat_session_routes_to_langgraph_class_by_default(monkeypatch):
+    class FakeSession:
+        def __init__(self, config, session_id=None):
+            self.config = config
+            self.session_id = session_id
+
+    monkeypatch.setattr(
+        "kaizen.fixer.backends.langgraph_backend.LangGraphFixerSession", FakeSession
+    )
+    session = fixer_dispatch.open_chat_session(_config("langgraph"), session_id="xyz")
+    assert isinstance(session, FakeSession)
+    assert session.session_id == "xyz"

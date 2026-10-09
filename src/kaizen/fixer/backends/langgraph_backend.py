@@ -25,14 +25,7 @@ from kaizen.config import KaizenConfig, PatchTier
 from kaizen.fixer.errors import FixerSessionError, summarize_exception
 from kaizen.fixer.tiering import classify_tier
 from kaizen.fixer.tools import make_fixer_tools
-
-FIXER_SYSTEM_PROMPT = (
-    "You are a precise, conservative software-fixing agent. Make the SMALLEST "
-    "possible change that fixes the described failure. Prefer fixing "
-    "prompts/config/tool descriptions over application code when the root "
-    "cause is there. Do not touch unrelated files. Never attempt to write "
-    "secrets, infra, or CI/CD config files."
-)
+from kaizen.prompts import FIXER_SYSTEM_PROMPT
 
 
 def _requires_code_review(tool_call, state, runtime) -> bool:  # noqa: ANN001
@@ -107,35 +100,49 @@ async def _stream_to_completion(agent, agent_input: Any, thread_config: dict) ->
 
 
 async def run_fix_session(prompt: str, config: KaizenConfig, session_id: str | None = None) -> list[str]:
-    """Runs the Fixer agent on `prompt`; resolves any Tier-2 approval
-    interrupts via a console y/n prompt. Returns the list of touched files.
-
-    `session_id`, if given, is reused as the LangGraph thread id (so a
-    retry/follow-up continues the same conversation) - otherwise a fresh one
-    is generated, matching the Copilot CLI backend's session semantics.
-
-    Raises `FixerSessionError` (short, human-readable message) instead of
-    letting a raw provider/library traceback bubble up to the CLI.
+    """Single-turn convenience wrapper around `LangGraphFixerSession`, used
+    by `kaizen fix`. Raises `FixerSessionError` (short, human-readable
+    message) instead of letting a raw provider/library traceback bubble up
+    to the CLI.
     """
-    touched_files: list[str] = []
-    agent = build_fixer_agent(
-        resolve_model(config.model, "fixer"), config.repo_path, touched_files, checkpointer=InMemorySaver()
-    )
-    thread_config = {"configurable": {"thread_id": session_id or f"fixer-{id(touched_files)}"}}
+    session = LangGraphFixerSession(config, session_id)
+    return await session.send(prompt)
 
-    try:
-        result = await _stream_to_completion(
-            agent, {"messages": [{"role": "user", "content": prompt}]}, thread_config
+
+class LangGraphFixerSession:
+    """A multi-turn Fixer conversation. Builds the agent + its in-memory
+    checkpointer once and reuses them across calls to `send()`, so a
+    follow-up message (e.g. from `kaizen chat`) continues the same
+    conversation - unlike `run_fix_session`, which is single-turn by
+    design (a fresh session every `kaizen fix` invocation).
+    """
+
+    def __init__(self, config: KaizenConfig, session_id: str | None = None):
+        self.touched_files: list[str] = []
+        self.agent = build_fixer_agent(
+            resolve_model(config.model, "fixer"), config.repo_path, self.touched_files, checkpointer=InMemorySaver()
         )
+        self.thread_config = {"configurable": {"thread_id": session_id or f"fixer-{id(self)}"}}
 
-        while "__interrupt__" in result:
-            interrupt = result["__interrupt__"][0]
-            request = interrupt.value["action_requests"][0]
-            print(f"\n[Fixer] Approval required: {request.get('description', request)}")
-            answer = input("Approve this Tier-2 code change? [y/N]: ").strip().lower()
-            decision = "approve" if answer == "y" else "reject"
-            result = await _stream_to_completion(agent, Command(resume=[{"type": decision}]), thread_config)
-    except Exception as exc:
-        raise FixerSessionError(summarize_exception(exc)) from exc
+    async def send(self, message: str) -> list[str]:
+        """Sends one message in this session; resolves any Tier-2 approval
+        interrupts via a console y/n prompt. Returns the files touched
+        across the whole session so far (not just this turn)."""
+        try:
+            result = await _stream_to_completion(
+                self.agent, {"messages": [{"role": "user", "content": message}]}, self.thread_config
+            )
 
-    return touched_files
+            while "__interrupt__" in result:
+                interrupt = result["__interrupt__"][0]
+                request = interrupt.value["action_requests"][0]
+                print(f"\n[Fixer] Approval required: {request.get('description', request)}")
+                answer = input("Approve this Tier-2 code change? [y/N]: ").strip().lower()
+                decision = "approve" if answer == "y" else "reject"
+                result = await _stream_to_completion(
+                    self.agent, Command(resume=[{"type": decision}]), self.thread_config
+                )
+        except Exception as exc:
+            raise FixerSessionError(summarize_exception(exc)) from exc
+
+        return self.touched_files

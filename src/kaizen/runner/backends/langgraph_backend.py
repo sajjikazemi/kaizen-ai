@@ -10,6 +10,7 @@ from __future__ import annotations
 from kaizen.azure_model import resolve_model
 from kaizen.config import KaizenConfig
 from kaizen.evals.schema import EvalCase
+from kaizen.prompts import RUNNER_SYSTEM_PROMPT
 
 
 async def run_mcp_task(case: EvalCase, config: KaizenConfig) -> tuple[str, bool, list[str]]:
@@ -38,7 +39,7 @@ async def run_mcp_task(case: EvalCase, config: KaizenConfig) -> tuple[str, bool,
         }
     )
     tools = await client.get_tools()
-    agent = create_agent(resolve_model(config.model, "runner"), tools)
+    agent = create_agent(resolve_model(config.model, "runner"), tools, system_prompt=RUNNER_SYSTEM_PROMPT)
 
     tool_errors: list[str] = []
     result = await agent.ainvoke({"messages": [{"role": "user", "content": case.task_prompt}]})

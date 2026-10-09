@@ -25,3 +25,15 @@ async def run_fix_session(prompt: str, config: KaizenConfig, session_id: str | N
     else:
         from kaizen.fixer.backends.langgraph_backend import run_fix_session as _run
     return await _run(prompt, config, session_id=session_id)
+
+
+def open_chat_session(config: KaizenConfig, session_id: str | None = None):
+    """Opens a multi-turn Fixer session for `kaizen chat` - same backends as
+    `run_fix_session`, but reusable across multiple `.send()` calls so
+    follow-up messages continue the same conversation instead of starting a
+    fresh one-shot session each time."""
+    if config.model.backend == "copilot_cli":
+        from kaizen.fixer.backends.copilot_cli_backend import CopilotCliFixerSession as _Session
+    else:
+        from kaizen.fixer.backends.langgraph_backend import LangGraphFixerSession as _Session
+    return _Session(config, session_id)

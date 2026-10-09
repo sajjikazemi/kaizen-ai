@@ -11,6 +11,7 @@ from kaizen.config import KaizenConfig
 from kaizen.copilot_cli.mcp_config import build_mcp_config
 from kaizen.copilot_cli.run import run_copilot_prompt_async
 from kaizen.evals.schema import EvalCase
+from kaizen.prompts import RUNNER_SYSTEM_PROMPT, with_system_prompt
 
 
 async def run_mcp_task(case: EvalCase, config: KaizenConfig) -> tuple[str, bool, list[str]]:
@@ -21,7 +22,7 @@ async def run_mcp_task(case: EvalCase, config: KaizenConfig) -> tuple[str, bool,
         )
 
     result = await run_copilot_prompt_async(
-        case.task_prompt,
+        with_system_prompt(RUNNER_SYSTEM_PROMPT, case.task_prompt),
         cwd=config.mcp_server.cwd or config.repo_path,
         session_id=str(uuid.uuid4()),  # each eval case gets its own isolated session
         model=config.model.copilot_runner_model,

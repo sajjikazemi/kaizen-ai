@@ -30,7 +30,7 @@ class PatchPlan:
     verdict: str | None = None  # "fix" | "trade" | "rejected", set by the CLI after evaluate()
 
 
-def _build_fix_prompt(record: TraceRecord) -> str:
+def build_fix_prompt(record: TraceRecord) -> str:
     error_lines = "\n".join(
         f"- {e.file or ''}:{e.line or ''} [{e.code or ''}] {e.message}" for e in record.errors
     ) or record.stdout[-2000:]
@@ -66,7 +66,7 @@ class FixerAgent:
             check=True,
         )
 
-        prompt = _build_fix_prompt(record)
+        prompt = build_fix_prompt(record)
         files_touched = self._run_fix_agent(prompt, record)
 
         tiers = [classify_tier(f) for f in files_touched] or [PatchTier.TIER_1_SAFE]

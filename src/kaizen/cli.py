@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import subprocess
+from pathlib import Path
 
 import click
 from rich.console import Console
@@ -9,13 +10,14 @@ from rich.table import Table
 
 from kaizen.adapters.dotnet import DotnetAdapter
 from kaizen.baseline.store import BaselineSnapshot, BaselineStore
-from kaizen.config import KaizenConfig
+from kaizen.config import KaizenConfig, PatchTier
 from kaizen.evals.schema import EvalSuite
 from kaizen.evaluate.control_sampler import ControlSampler
 from kaizen.evaluate.report_view import render_report
 from kaizen.evaluate.split_report import evaluate as run_evaluation
-from kaizen.fixer.agent import FixerAgent
+from kaizen.fixer.agent import FixerAgent, PatchPlan, build_fix_prompt
 from kaizen.fixer.errors import FixerSessionError
+from kaizen.fixer.tiering import classify_tier
 from kaizen.runner.agent import RunnerAgent
 from kaizen.trace.store import TraceStore
 
@@ -68,9 +70,23 @@ def _control_sampler(config: KaizenConfig) -> ControlSampler:
     return ControlSampler(f"{config.repo_path}/.kaizen/control_sample_history.json")
 
 
-@click.group()
-def main():
-    """KaizenAI: closed-loop, self-improving agent framework."""
+@click.group(invoke_without_command=True)
+@click.option("--config", "config_path", default=None, help="Path to kaizen.yaml (defaults to ./kaizen.yaml)")
+@click.option(
+    "--case", "case_id", default=None,
+    help="Eval case to chat about (auto-picked if there's exactly one failing case)",
+)
+@click.pass_context
+def main(ctx: click.Context, config_path: str | None, case_id: str | None):
+    """KaizenAI: closed-loop, self-improving agent framework.
+
+    Run with no subcommand (just `kaizen`) to open an interactive chat
+    session for a failing case - like `copilot`/`claude` - instead of the
+    one-shot `run`/`baseline`/`fix`/`evaluate` commands below.
+    """
+    if ctx.invoked_subcommand is not None:
+        return
+    _interactive_chat(config_path, case_id)
 
 
 @main.command()
@@ -216,6 +232,148 @@ def fix(config_path: str, open_pr: bool):
 
             url = _open_pr(config, plan)
             console.print(f"  [blue]PR opened:[/] {url}")
+
+
+def _resolve_chat_case_id(trace_store: TraceStore, case_id: str | None) -> str:
+    if case_id is not None:
+        return case_id
+    failures = trace_store.read_failures()
+    case_ids = sorted({r.case_id for r in failures})
+    if not case_ids:
+        console.print("[yellow]No failing cases recorded yet. Run `kaizen run` first, or pass --case <id>.[/]")
+        raise SystemExit(1)
+    if len(case_ids) == 1:
+        return case_ids[0]
+    console.print("[cyan]Multiple failing cases - pick one:[/]")
+    for i, cid in enumerate(case_ids, 1):
+        console.print(f"  {i}. {cid}")
+    choice = console.input("> ").strip()
+    try:
+        return case_ids[int(choice) - 1]
+    except (ValueError, IndexError):
+        console.print("[red]Invalid choice.[/]")
+        raise SystemExit(1) from None
+
+
+def _ensure_fix_branch(config: KaizenConfig, branch_name: str) -> None:
+    exists = subprocess.run(
+        ["git", "rev-parse", "--verify", branch_name],
+        cwd=config.repo_path, capture_output=True,
+    ).returncode == 0
+    if exists:
+        subprocess.run(["git", "checkout", branch_name], cwd=config.repo_path, check=True)
+        console.print(f"[cyan]Resuming existing branch {branch_name}[/]")
+    else:
+        subprocess.run(
+            ["git", "checkout", "-b", branch_name, config.gate.base_branch],
+            cwd=config.repo_path, check=True,
+        )
+        console.print(f"[cyan]Created branch {branch_name}[/]")
+
+
+def _interactive_chat(config_path: str | None, case_id: str | None) -> None:
+    """Drops into a REPL for a single failing case's Fixer session - the
+    `kaizen fix` flow, but conversational: send follow-up messages, ask it
+    to try a different approach, inspect the diff, verify, or open the PR
+    whenever you're satisfied, all in the same continuing session."""
+    import anyio
+
+    from kaizen.fixer.dispatch import open_chat_session, session_id_for
+    from kaizen.gate.pr_gate import open_pr as _open_pr
+
+    if not config_path:
+        default_path = Path("kaizen.yaml")
+        if not default_path.exists():
+            console.print(
+                "[red]No kaizen.yaml in the current directory.[/] "
+                "Pass --config <path>, or cd into a project that has one."
+            )
+            raise SystemExit(1)
+        config_path = str(default_path)
+
+    config, suite, adapter, trace_store = _load(config_path)
+    case_id = _resolve_chat_case_id(trace_store, case_id)
+
+    case = next((c for c in suite.cases if c.id == case_id), None)
+    if case is None:
+        console.print(f"[red]No eval case {case_id!r} found in the suite.[/]")
+        raise SystemExit(1)
+
+    records = [r for r in trace_store.read_all() if r.case_id == case_id]
+    if not records:
+        console.print(f"[red]No trace recorded yet for {case_id!r}. Run `kaizen run` first.[/]")
+        raise SystemExit(1)
+    record = records[-1]
+
+    branch_name = f"{config.gate.branch_prefix}/{case_id}"
+    _ensure_fix_branch(config, branch_name)
+
+    session = open_chat_session(config, session_id_for(record))
+    console.print(
+        f"[bold cyan]Kaizen chat[/] - case [bold]{case_id}[/], branch {branch_name}. "
+        "Type /help for commands, /exit to leave.\n"
+    )
+
+    async def _run() -> None:
+        touched: list[str] = []
+        console.print("[dim]Sending initial failure context...[/]")
+        try:
+            touched = await session.send(build_fix_prompt(record))
+        except FixerSessionError as exc:
+            console.print(f"  [red]Session error:[/] {exc}")
+        if touched:
+            console.print(f"  [green]Files touched so far:[/] {touched}")
+
+        while True:
+            user_input = console.input("\n[bold cyan]you>[/] ").strip()
+            if not user_input:
+                continue
+            if user_input in ("/exit", "/quit"):
+                console.print("[yellow]Leaving chat - branch left as-is; run `kaizen` again for this case to resume.[/]")
+                return
+            if user_input == "/abandon":
+                _abandon_branch(config)
+                console.print("[yellow]Branch abandoned; returned to base branch.[/]")
+                return
+            if user_input == "/diff":
+                result = subprocess.run(
+                    ["git", "diff", config.gate.base_branch], cwd=config.repo_path,
+                    capture_output=True, text=True,
+                )
+                console.print(result.stdout or "[dim](no changes yet)[/]")
+                continue
+            if user_input == "/verify":
+                if case.command:
+                    result = adapter.run(case.command)
+                    status = "[green]PASS[/]" if result.exit_code == 0 else "[red]FAIL[/]"
+                    console.print(f"  verify: {status} (exit_code={result.exit_code})")
+                else:
+                    console.print("[dim]This case has no shell command to verify directly.[/]")
+                continue
+            if user_input == "/pr":
+                tiers = [classify_tier(f) for f in touched] or [PatchTier.TIER_1_SAFE]
+                plan = PatchPlan(
+                    case_id=case_id, branch_name=branch_name,
+                    summary=f"Fix for failing eval case '{case_id}'",
+                    files_touched=touched,
+                    highest_tier=max(tiers, key=lambda t: list(PatchTier).index(t)),
+                )
+                url = _open_pr(config, plan)
+                console.print(f"[blue]PR opened:[/] {url}")
+                continue
+            if user_input in ("/help", "?"):
+                console.print("Commands: /verify  /diff  /pr  /abandon  /exit")
+                continue
+
+            try:
+                touched = await session.send(user_input)
+            except FixerSessionError as exc:
+                console.print(f"  [red]Session error:[/] {exc}")
+                continue
+            if touched:
+                console.print(f"  [green]Files touched so far:[/] {touched}")
+
+    anyio.run(_run)
 
 
 if __name__ == "__main__":
