@@ -28,8 +28,8 @@ from kaizen.fixer.tools import make_fixer_tools
 from kaizen.prompts import FIXER_SYSTEM_PROMPT
 
 
-def _requires_code_review(tool_call, state, runtime) -> bool:  # noqa: ANN001
-    path = tool_call.get("args", {}).get("path", "")
+def _requires_code_review(req: Any) -> bool:  # req: ToolCallRequest
+    path = req.tool_call.get("args", {}).get("path", "")
     return classify_tier(path) == PatchTier.TIER_2_CODE
 
 
