@@ -27,6 +27,7 @@ class PatchPlan:
     files_touched: list[str] = field(default_factory=list)
     highest_tier: PatchTier = PatchTier.TIER_1_SAFE
     verified_fixed: bool = False
+    verdict: str | None = None  # "fix" | "trade" | "rejected", set by the CLI after evaluate()
 
 
 def _build_fix_prompt(record: TraceRecord) -> str:

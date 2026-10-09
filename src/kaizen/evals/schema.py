@@ -22,6 +22,10 @@ class EvalCase(BaseModel):
     expect_exit_code: int = 0
     expect_output_contains: list[str] = Field(default_factory=list)
     timeout_seconds: int = 300
+    # Feature/category labels, e.g. ["device-provisioning", "auth"]. Used to
+    # build the treatment split (cases sharing a tag with a failing case)
+    # and to stratify the control split.
+    tags: list[str] = Field(default_factory=list)
 
 
 class EvalSuite(BaseModel):

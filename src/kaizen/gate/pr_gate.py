@@ -38,10 +38,12 @@ def open_pr(config: KaizenConfig, plan: PatchPlan) -> str:
     )
 
     verified = "yes" if plan.verified_fixed else "NO - needs manual verification"
+    verdict_line = f"- Evaluation verdict: `{plan.verdict}`\n" if plan.verdict else ""
     body = (
         f"### Kaizen auto-generated fix\n\n"
         f"- Failing eval case: `{plan.case_id}`\n"
         f"- Risk tier: `{plan.highest_tier.value}`\n"
+        f"{verdict_line}"
         f"- Files touched: {', '.join(plan.files_touched) or '(none detected)'}\n"
         f"- Re-verified locally: {verified}\n\n"
         f"This PR was opened automatically and requires human review before merge.\n"

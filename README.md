@@ -33,13 +33,39 @@ Fixer ──proposes patch──▶ git branch ──▶ PR ──▶ Human revi
 
 1. Add a `kaizen.yaml` to the target repo (see
    `examples/sample_dotnet_project/kaizen.yaml`).
-2. Add an `evals/` directory with one `*.eval.yaml` file per case (see
-   `examples/sample_dotnet_project/evals/`).
+2. Add an `evals/` directory with one `*.eval.yaml` file per case, tagged
+   by feature area (see `examples/sample_dotnet_project/evals/`).
 3. Run:
    ```bash
-   kaizen run --config path/to/kaizen.yaml
-   kaizen fix --config path/to/kaizen.yaml --open-pr
+   kaizen baseline --config path/to/kaizen.yaml      # cache ground-truth (run on a cadence, e.g. nightly)
+   kaizen run --config path/to/kaizen.yaml           # find today's failures
+   kaizen fix --config path/to/kaizen.yaml --open-pr # propose, evaluate, and PR each fix
    ```
+
+## Statistically-gated regression safety
+
+Fixing failures and verifying nothing else broke are two different
+problems — at 200+ eval cases you can't afford to re-run everything on
+every candidate, nor can you trust a 5-question spot check. Kaizen uses a
+paired **treatment/control** evaluation (`kaizen evaluate`), the same
+methodology used for online A/B testing and NLP model regression testing:
+
+- **Treatment split** = the failing case(s) + any case sharing a tag
+  (feature area) with them.
+- **Control split** = a stratified random sample of everything else,
+  rotated across cycles so full coverage accumulates over time instead of
+  being paid for on every run.
+- Baseline vs. candidate results on both splits are compared with
+  **McNemar's test** (the statistically correct test for paired binary
+  before/after outcomes), not a plain percentage diff.
+- **Decision rule:** significant gain on treatment + flat control → `fix`
+  (open PR). Gain on treatment + significant loss on control → `trade`
+  (PR opened but flagged for explicit human judgment). No significant
+  treatment gain → `rejected` (no PR; Fixer iterates again).
+
+See `docs/README.md` for the supporting papers (McNemar 1947; Dietterich
+1998; Dror et al. 2018; Ribeiro et al. 2020; Sculley et al. 2015; Kohavi
+et al. 2009; Rothermel & Harrold 1996; Yoo & Harman 2012; Cochran 1977).
 
 ## Risk tiers
 
