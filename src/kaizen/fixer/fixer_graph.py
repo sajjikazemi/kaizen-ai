@@ -35,7 +35,18 @@ def _requires_code_review(tool_call, state, runtime) -> bool:  # noqa: ANN001
     return classify_tier(path) == PatchTier.TIER_2_CODE
 
 
-def build_fixer_agent(model: str, repo_path: str, touched_files: list[str]):
+def build_fixer_agent(
+    model: str,
+    repo_path: str,
+    touched_files: list[str],
+    checkpointer: object | None = None,
+):
+    """`checkpointer` should be omitted when served via `langgraph dev`/Studio
+    or any LangGraph Platform deployment - the platform injects its own
+    persistence and rejects a custom one. Pass an explicit checkpointer (e.g.
+    `InMemorySaver()`) only for the standalone CLI path, which has no
+    platform layer to provide one.
+    """
     tools = make_fixer_tools(repo_path, touched_files)
     middleware = [
         HumanInTheLoopMiddleware(
@@ -46,12 +57,13 @@ def build_fixer_agent(model: str, repo_path: str, touched_files: list[str]):
             description_prefix="Fixer wants to modify application code (Tier 2) - review required",
         )
     ]
+    kwargs = {"checkpointer": checkpointer} if checkpointer is not None else {}
     return create_agent(
         model,
         tools,
         system_prompt=FIXER_SYSTEM_PROMPT,
         middleware=middleware,
-        checkpointer=InMemorySaver(),
+        **kwargs,
     )
 
 
@@ -60,7 +72,9 @@ async def run_fix_session(prompt: str, config: KaizenConfig) -> list[str]:
     interrupts via a console y/n prompt. Returns the list of touched files.
     """
     touched_files: list[str] = []
-    agent = build_fixer_agent(config.model.fixer_model, config.repo_path, touched_files)
+    agent = build_fixer_agent(
+        config.model.fixer_model, config.repo_path, touched_files, checkpointer=InMemorySaver()
+    )
     thread_config = {"configurable": {"thread_id": f"fixer-{id(touched_files)}"}}
 
     result = await agent.ainvoke({"messages": [{"role": "user", "content": prompt}]}, config=thread_config)
