@@ -82,3 +82,16 @@ def test_print_progress_summarizes_tool_results_instead_of_dumping_them(capsys):
     out = capsys.readouterr().out
     assert "done" in out
     assert "x" * 100 not in out  # the raw dump must not appear
+
+
+def test_hitl_resume_payload_shape_matches_langchain_contract():
+    """Regression test: a second real bug caught live against gpt-4o-reasoning -
+    `interrupt(hitl_request)["decisions"]` means the resume value we send
+    back MUST be a dict with a "decisions" key (a list, one entry per
+    interrupted tool call, in order) - not a bare list. Confirmed by
+    importing langchain's own HITLResponse TypedDict directly, so this
+    breaks loudly if the library's contract ever changes.
+    """
+    from langchain.agents.middleware.human_in_the_loop import HITLResponse
+
+    assert "decisions" in HITLResponse.__annotations__

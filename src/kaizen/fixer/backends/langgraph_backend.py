@@ -170,12 +170,14 @@ class LangGraphFixerSession:
 
             while "__interrupt__" in result:
                 interrupt = result["__interrupt__"][0]
-                request = interrupt.value["action_requests"][0]
-                print(f"\n[Fixer] Approval required: {request.get('description', request)}")
-                answer = input("Approve this Tier-2 code change? [y/N]: ").strip().lower()
-                decision = "approve" if answer == "y" else "reject"
+                requests = interrupt.value["action_requests"]
+                decisions = []
+                for request in requests:
+                    print(f"\n[Fixer] Approval required: {request.get('description', request)}")
+                    answer = input("Approve this Tier-2 code change? [y/N]: ").strip().lower()
+                    decisions.append({"type": "approve" if answer == "y" else "reject"})
                 result = await _stream_to_completion(
-                    self.agent, Command(resume=[{"type": decision}]), self.thread_config
+                    self.agent, Command(resume={"decisions": decisions}), self.thread_config
                 )
         except Exception as exc:
             raise FixerSessionError(summarize_exception(exc)) from exc
