@@ -123,7 +123,7 @@ Note: Studio visualizes the **`langgraph` backend's** Fixer graph specifically
 a project to `langgraph`.
 
 ```bash
-cp .env.example .env        # fill in ANTHROPIC_API_KEY / OPENAI_API_KEY etc.
+cp .env.example .env        # fill in ANTHROPIC_API_KEY / OPENAI_API_KEY / LANGSMITH_API_KEY etc.
 export KAIZEN_CONFIG=/path/to/your/project/kaizen.yaml   # optional, defaults to the bundled example
 poetry run langgraph dev
 ```
@@ -131,6 +131,12 @@ This opens LangGraph Studio against the **Fixer** graph (`kaizen.graphs:fixer_gr
 declared in `langgraph.json`) — you can send it a prompt, watch each tool
 call, and approve/reject Tier-2 code edits visually instead of (or in
 addition to) the CLI's `y/N` prompt.
+
+**`LANGSMITH_API_KEY`** (in `.env`) is optional but recommended: Studio works
+without it, but you won't see the "Trace"/run-history tab populate. Free to
+create at [smith.langchain.com](https://smith.langchain.com) → Settings →
+API Keys. Without it, Studio shows a "LangSmith API key is missing" banner —
+harmless, just no trace history.
 
 ### Prerequisite for the `copilot_cli` backend
 
