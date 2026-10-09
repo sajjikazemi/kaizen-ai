@@ -56,24 +56,52 @@ class GateConfig(BaseModel):
     branch_prefix: str = "kaizen/fix"
 
 
+class AzureModelConfig(BaseModel):
+    """Azure OpenAI connection details for the ``langgraph`` backend.
+
+    ``auth_mode: "azure_ad"`` (the default) authenticates with the
+    operator's own Azure identity via ``DefaultAzureCredential`` (picks up
+    an existing ``az login`` session, a managed identity, etc.) - no API
+    key is ever generated, stored, or distributed, which also sidesteps
+    needing the (often separately-gated) ``listKeys`` permission. Use
+    ``auth_mode: "api_key"`` only if AAD auth isn't an option; it reads
+    ``AZURE_OPENAI_API_KEY`` from the environment.
+
+    Overrides ``runner_model``/``fixer_model`` when a deployment is set for
+    that role - this takes precedence over the plain "provider:model"
+    string path.
+    """
+
+    endpoint: str
+    api_version: str = "2024-10-21"
+    auth_mode: str = "azure_ad"  # "azure_ad" | "api_key"
+    runner_deployment: str | None = None
+    fixer_deployment: str | None = None
+
+
 class ModelConfig(BaseModel):
     """Per-role model/backend selection.
 
     backend: "langgraph" (direct provider API calls - needs an API key per
-        provider; set via ``runner_model``/``fixer_model`` as a
-        ``"provider:model"`` string) or "copilot_cli" (shells out to the
-        already-authenticated GitHub Copilot CLI - no separate API key
-        needed; set via ``copilot_runner_model``/``copilot_fixer_model``
-        using Copilot's own model catalog names, e.g. "claude-sonnet-4.5",
-        or "auto"). Pick per project depending on what's available; swap
-        later with no code changes once a direct LLM deployment exists.
+        provider, or an ``azure`` block for Azure OpenAI; set via
+        ``runner_model``/``fixer_model`` as a ``"provider:model"`` string)
+        or "copilot_cli" (shells out to the already-authenticated GitHub
+        Copilot CLI - no separate API key needed; set via
+        ``copilot_runner_model``/``copilot_fixer_model`` using Copilot's
+        own model catalog names, e.g. "claude-sonnet-4.5", or "auto").
+        Pick per project depending on what's available; swap later with no
+        code changes once a direct LLM deployment exists.
     """
 
     backend: str = "langgraph"  # "langgraph" | "copilot_cli"
 
-    # Used when backend == "langgraph".
+    # Used when backend == "langgraph" and no `azure` deployment is set
+    # for the role.
     runner_model: str = "anthropic:claude-haiku-4-5"
     fixer_model: str = "anthropic:claude-sonnet-4-5"
+
+    # Used when backend == "langgraph" and pointed at Azure OpenAI.
+    azure: AzureModelConfig | None = None
 
     # Used when backend == "copilot_cli". None lets Copilot auto-pick.
     copilot_runner_model: str | None = None

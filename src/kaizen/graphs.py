@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import os
 
+from kaizen.azure_model import resolve_model
 from kaizen.config import KaizenConfig
 from kaizen.fixer.backends.langgraph_backend import build_fixer_agent
 
@@ -27,5 +28,5 @@ _config = KaizenConfig.load(_CONFIG_PATH)
 _touched_files_sink: list[str] = []
 
 fixer_graph = build_fixer_agent(
-    _config.model.fixer_model, _config.repo_path, _touched_files_sink
+    resolve_model(_config.model, "fixer"), _config.repo_path, _touched_files_sink
 )

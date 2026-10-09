@@ -1,8 +1,9 @@
 """Builds and runs the Fixer's LangGraph agent session.
 
 Provider-agnostic: `config.model.fixer_model` is a ``"provider:model"``
-string (LangChain's `init_chat_model` convention), so swapping Anthropic for
-OpenAI/Bedrock/a local model is a one-line config change, not a code change.
+string (LangChain's `init_chat_model` convention), or `config.model.azure`
+names an Azure OpenAI deployment - swapping providers is a config change,
+not a code change (see `kaizen.azure_model.resolve_model`).
 
 Tier-2 (application code) writes/edits pause for human approval via
 `HumanInTheLoopMiddleware` - on top of the hard Tier-3 block in tools.py and
@@ -12,11 +13,14 @@ live, in addition to the CLI prompt below.
 """
 from __future__ import annotations
 
+from typing import Any
+
 from langchain.agents import create_agent
 from langchain.agents.middleware import HumanInTheLoopMiddleware
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.types import Command
 
+from kaizen.azure_model import resolve_model
 from kaizen.config import KaizenConfig, PatchTier
 from kaizen.fixer.tiering import classify_tier
 from kaizen.fixer.tools import make_fixer_tools
@@ -36,7 +40,7 @@ def _requires_code_review(tool_call, state, runtime) -> bool:  # noqa: ANN001
 
 
 def build_fixer_agent(
-    model: str,
+    model: str | Any,
     repo_path: str,
     touched_files: list[str],
     checkpointer: object | None = None,
@@ -77,7 +81,7 @@ async def run_fix_session(prompt: str, config: KaizenConfig, session_id: str | N
     """
     touched_files: list[str] = []
     agent = build_fixer_agent(
-        config.model.fixer_model, config.repo_path, touched_files, checkpointer=InMemorySaver()
+        resolve_model(config.model, "fixer"), config.repo_path, touched_files, checkpointer=InMemorySaver()
     )
     thread_config = {"configurable": {"thread_id": session_id or f"fixer-{id(touched_files)}"}}
 

@@ -1,11 +1,13 @@
 """Executes one task_prompt eval case against the target's MCP server.
 
 Provider-agnostic: `config.model.runner_model` is a ``"provider:model"``
-string, so the Runner (which typically only needs to drive tool calls, not
-reason deeply) can use a cheap/fast model independent of the Fixer's model.
+string (or `config.model.azure.runner_deployment` for Azure OpenAI), so the
+Runner (which typically only needs to drive tool calls, not reason deeply)
+can use a cheap/fast model independent of the Fixer's model.
 """
 from __future__ import annotations
 
+from kaizen.azure_model import resolve_model
 from kaizen.config import KaizenConfig
 from kaizen.evals.schema import EvalCase
 
@@ -36,7 +38,7 @@ async def run_mcp_task(case: EvalCase, config: KaizenConfig) -> tuple[str, bool,
         }
     )
     tools = await client.get_tools()
-    agent = create_agent(config.model.runner_model, tools)
+    agent = create_agent(resolve_model(config.model, "runner"), tools)
 
     tool_errors: list[str] = []
     result = await agent.ainvoke({"messages": [{"role": "user", "content": case.task_prompt}]})

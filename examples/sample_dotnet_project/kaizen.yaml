@@ -47,4 +47,17 @@ model:
   runner_model: anthropic:claude-haiku-4-5   # cheap/fast - just drives MCP tool calls
   fixer_model: anthropic:claude-sonnet-4-5   # stronger - writes the actual patch
 
+  # Used when backend: langgraph AND you have an Azure OpenAI deployment
+  # instead of (or in addition to) a direct provider key. A deployment set
+  # here for a role overrides the plain runner_model/fixer_model string
+  # above for that role. AAD (az login) auth by default - no API key to
+  # manage; set auth_mode: api_key + AZURE_OPENAI_API_KEY only if AAD
+  # auth isn't available to you.
+  # azure:
+  #   endpoint: https://your-resource.openai.azure.com/
+  #   api_version: "2024-10-21"
+  #   auth_mode: azure_ad   # or "api_key"
+  #   runner_deployment: gpt-4o-mini
+  #   fixer_deployment: gpt-4o-reasoning
+
 trace_store_path: .kaizen/traces.jsonl
