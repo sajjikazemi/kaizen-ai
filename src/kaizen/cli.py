@@ -15,6 +15,7 @@ from kaizen.evaluate.control_sampler import ControlSampler
 from kaizen.evaluate.report_view import render_report
 from kaizen.evaluate.split_report import evaluate as run_evaluation
 from kaizen.fixer.agent import FixerAgent
+from kaizen.fixer.errors import FixerSessionError
 from kaizen.runner.agent import RunnerAgent
 from kaizen.trace.store import TraceStore
 
@@ -36,11 +37,27 @@ def _is_abs_like(path: str) -> bool:
     return path.startswith("/") or (len(path) > 1 and path[1] == ":")
 
 
+def _debug_enabled() -> bool:
+    import os
+
+    return os.environ.get("KAIZEN_DEBUG", "").lower() in ("1", "true", "yes")
+
+
 def _git_sha(repo_path: str) -> str:
     result = subprocess.run(
         ["git", "rev-parse", "HEAD"], cwd=repo_path, capture_output=True, text=True, check=True
     )
     return result.stdout.strip()
+
+
+def _abandon_branch(config: KaizenConfig) -> None:
+    """Best-effort cleanup: return the repo to its base branch after a
+    Fixer session fails, so a crash doesn't leave the working tree stuck
+    on a half-finished fix branch."""
+    subprocess.run(
+        ["git", "checkout", config.gate.base_branch],
+        cwd=config.repo_path, capture_output=True, text=True,
+    )
 
 
 def _baseline_store(config: KaizenConfig) -> BaselineStore:
@@ -152,7 +169,24 @@ def fix(config_path: str, open_pr: bool):
     fixer = FixerAgent(config, adapter)
     for case_id, record in by_case.items():
         console.print(f"[cyan]Proposing fix for {case_id}...[/]")
-        plan = fixer.propose_fix(record)
+        try:
+            plan = fixer.propose_fix(record)
+        except FixerSessionError as exc:
+            console.print(f"  [red]Fixer session failed:[/] {exc}")
+            console.print("  [yellow]Branch abandoned; returning to base branch. Set KAIZEN_DEBUG=1 for the full trace.[/]")
+            if _debug_enabled():
+                console.print_exception()
+            _abandon_branch(config)
+            continue
+        except Exception as exc:  # noqa: BLE001 - last-resort guard, never show a raw traceback by default
+            console.print(f"  [red]Unexpected error proposing fix:[/] {exc}")
+            if _debug_enabled():
+                console.print_exception()
+            else:
+                console.print("  [dim]Set KAIZEN_DEBUG=1 to see the full traceback.[/]")
+            _abandon_branch(config)
+            continue
+
         plan = fixer.verify(plan, case_commands.get(case_id))
         console.print(
             f"  tier={plan.highest_tier.value} verified_fixed={plan.verified_fixed} "

@@ -52,6 +52,7 @@ def test_build_azure_chat_model_uses_aad_by_default():
             azure_endpoint="https://x.openai.azure.com/",
             api_version="2024-10-21",
             azure_deployment="gpt-4o-mini",
+            use_responses_api=True,
             azure_ad_token_provider=fake_token_provider,
         )
 
@@ -76,5 +77,6 @@ def test_build_azure_chat_model_api_key_mode_uses_env_var(monkeypatch):
             azure_endpoint="https://x.openai.azure.com/",
             api_version="2024-10-21",
             azure_deployment="gpt-4o-mini",
+            use_responses_api=True,
             api_key="secret-123",
         )

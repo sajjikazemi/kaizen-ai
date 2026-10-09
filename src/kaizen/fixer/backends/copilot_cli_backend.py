@@ -12,19 +12,28 @@ PR gate, which always requires human approval for Tier-2/3 changes.
 from __future__ import annotations
 
 from kaizen.config import KaizenConfig
-from kaizen.copilot_cli.run import run_copilot_prompt_async
+from kaizen.copilot_cli.run import CopilotCliNotFound, run_copilot_prompt_async
+from kaizen.fixer.errors import FixerSessionError
 from kaizen.fixer.git_tier_guard import revert_locked_paths
 
 
 async def run_fix_session(prompt: str, config: KaizenConfig, session_id: str | None = None) -> list[str]:
-    result = await run_copilot_prompt_async(
-        prompt,
-        cwd=config.repo_path,
-        session_id=session_id,
-        model=config.model.copilot_fixer_model,
-        allow_all_tools=True,
-    )
+    print(f"  [Fixer:copilot_cli] starting session {session_id or '(new)'}...")
+    try:
+        result = await run_copilot_prompt_async(
+            prompt,
+            cwd=config.repo_path,
+            session_id=session_id,
+            model=config.model.copilot_fixer_model,
+            allow_all_tools=True,
+        )
+    except CopilotCliNotFound as exc:
+        raise FixerSessionError(str(exc)) from exc
+
     if not result.success:
-        print(f"[Fixer:copilot_cli] session reported issues: {result.tool_errors or result.text[:500]}")
+        detail = "; ".join(result.tool_errors) if result.tool_errors else (result.text[:300] or "(no output)")
+        print(f"  [Fixer:copilot_cli] session reported issues: {detail}")
+    else:
+        print(f"  [Fixer:copilot_cli] session finished (exit_code={result.exit_code})")
 
     return revert_locked_paths(config.repo_path, config.gate.base_branch)

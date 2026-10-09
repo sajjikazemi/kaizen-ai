@@ -77,6 +77,13 @@ class AzureModelConfig(BaseModel):
     auth_mode: str = "azure_ad"  # "azure_ad" | "api_key"
     runner_deployment: str | None = None
     fixer_deployment: str | None = None
+    # Reasoning models (e.g. the gpt-6/gpt-5.6 family) reject function/tool
+    # calls on the Chat Completions endpoint when a reasoning_effort is set
+    # ("Function tools with reasoning_effort are not supported ... use
+    # /v1/responses"). True routes through the Responses API instead, which
+    # supports both. Kaizen's Fixer/Runner always use tool calls, so this
+    # defaults on; set False only if a deployment doesn't support it.
+    use_responses_api: bool = True
 
 
 class ModelConfig(BaseModel):

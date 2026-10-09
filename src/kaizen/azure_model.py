@@ -23,6 +23,7 @@ def build_azure_chat_model(azure: AzureModelConfig, deployment: str) -> Any:
         "azure_endpoint": azure.endpoint,
         "api_version": azure.api_version,
         "azure_deployment": deployment,
+        "use_responses_api": azure.use_responses_api,
     }
 
     if azure.auth_mode == "api_key":
