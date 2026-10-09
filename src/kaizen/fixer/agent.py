@@ -57,8 +57,11 @@ class FixerAgent:
         import subprocess
 
         branch_name = f"{self.config.gate.branch_prefix}/{record.case_id}"
+        # -B (not -b): resets the branch to base_branch if it already
+        # exists (e.g. left over from a previous failed/crashed attempt)
+        # instead of erroring out.
         subprocess.run(
-            ["git", "checkout", "-b", branch_name, self.config.gate.base_branch],
+            ["git", "checkout", "-B", branch_name, self.config.gate.base_branch],
             cwd=self.config.repo_path,
             check=True,
         )
