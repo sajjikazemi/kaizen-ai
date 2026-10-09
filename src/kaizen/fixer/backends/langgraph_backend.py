@@ -70,19 +70,54 @@ def _shorten(value: Any, length: int = 160) -> str:
     return text if len(text) <= length else text[: length - 3] + "..."
 
 
+_TOOL_DESCRIPTIONS = {
+    "read_file": lambda args: f"Reading {args.get('path', '?')}",
+    "write_file": lambda args: f"Writing {args.get('path', '?')}",
+    "edit_file": lambda args: f"Editing {args.get('path', '?')}",
+    "run_bash": lambda args: f"Running: {_shorten(args.get('command', '?'), 100)}",
+}
+
+
+def _describe_tool_call(name: str | None, args: dict) -> str:
+    describe = _TOOL_DESCRIPTIONS.get(name or "")
+    return describe(args) if describe else f"Calling {name}"
+
+
+def _describe_tool_result(content: str) -> str:
+    """Tool results (file contents, command output) are often long and not
+    meant for a human to read live - show a short, natural status instead
+    of dumping the raw payload."""
+    if content.startswith("exit="):
+        first_line = content.splitlines()[0]
+        code = first_line.split("=", 1)[1] if "=" in first_line else "?"
+        return "done" if code == "0" else f"failed (exit {code})"
+    if content.startswith(("DENIED", "ERROR")):
+        return _shorten(content, 150)
+    return "done"
+
+
 def _print_progress(message: Any) -> None:
-    """Prints one short, human-readable line per new message/tool-call, so
+    """Prints one short, natural-language line per new tool-call/result, so
     the terminal shows live progress instead of going silent until the
-    session finishes (or crashes)."""
+    session finishes (or crashes) - or dumping raw dicts/file contents."""
     role = getattr(message, "type", "message")
+    if role == "human":
+        return  # that's just the message we sent - no need to echo it back
+
     tool_calls = getattr(message, "tool_calls", None)
     if tool_calls:
         for call in tool_calls:
-            print(f"  [Fixer] -> {call.get('name')}({_shorten(call.get('args', {}), 100)})")
+            print(f"  [Fixer] {_describe_tool_call(call.get('name'), call.get('args', {}))}")
         return
+
     content = getattr(message, "content", None)
+    if role == "tool":
+        if isinstance(content, str) and content.strip():
+            print(f"  [Fixer]   -> {_describe_tool_result(content)}")
+        return
+
     if isinstance(content, str) and content.strip():
-        print(f"  [Fixer] <- {role}: {_shorten(content)}")
+        print(f"  [Fixer] {_shorten(content, 200)}")
 
 
 async def _stream_to_completion(agent, agent_input: Any, thread_config: dict) -> dict:
