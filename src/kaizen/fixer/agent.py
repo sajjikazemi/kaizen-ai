@@ -64,7 +64,7 @@ class FixerAgent:
         )
 
         prompt = _build_fix_prompt(record)
-        files_touched = self._run_fix_agent(prompt)
+        files_touched = self._run_fix_agent(prompt, record)
 
         tiers = [classify_tier(f) for f in files_touched] or [PatchTier.TIER_1_SAFE]
         highest_tier = max(tiers, key=lambda t: list(PatchTier).index(t))
@@ -77,12 +77,12 @@ class FixerAgent:
             highest_tier=highest_tier,
         )
 
-    def _run_fix_agent(self, prompt: str) -> list[str]:
+    def _run_fix_agent(self, prompt: str, record: TraceRecord) -> list[str]:
         import anyio
 
-        from kaizen.fixer.fixer_graph import run_fix_session
+        from kaizen.fixer.dispatch import run_fix_session, session_id_for
 
-        return anyio.run(run_fix_session, prompt, self.config)
+        return anyio.run(run_fix_session, prompt, self.config, session_id_for(record))
 
     def verify(self, plan: PatchPlan, case_command: list[str] | None) -> PatchPlan:
         if case_command is None:

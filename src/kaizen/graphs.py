@@ -13,7 +13,7 @@ from __future__ import annotations
 import os
 
 from kaizen.config import KaizenConfig
-from kaizen.fixer.fixer_graph import build_fixer_agent
+from kaizen.fixer.backends.langgraph_backend import build_fixer_agent
 
 _THIS_DIR = os.path.dirname(__file__)
 _DEFAULT_CONFIG = os.path.join(

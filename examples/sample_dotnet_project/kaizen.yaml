@@ -24,9 +24,26 @@ gate:
   require_review_for: [tier_2_code, tier_3_locked]
   auto_apply_tiers: []   # empty = every PR needs a human, even tier 1
 
-# Provider-agnostic: "provider:model" (LangChain init_chat_model convention).
-# Swap Anthropic for OpenAI/Bedrock/a local model with no code changes.
+# Two backends available, picked independently of everything else in this
+# file - swap by changing `model.backend` only, no code changes needed.
+#
+# "copilot_cli"  - shells out to the already-authenticated GitHub Copilot
+#                  CLI (`copilot -p ...`). No separate API key needed; uses
+#                  whatever the operator is already logged into. Good
+#                  default when there's no LLM provider deployment yet.
+# "langgraph"    - direct provider API calls via LangChain's
+#                  "provider:model" convention. Needs an API key
+#                  (ANTHROPIC_API_KEY/OPENAI_API_KEY/etc., see .env.example).
+#                  Switch to this once a direct LLM deployment exists.
 model:
+  backend: copilot_cli
+
+  # Used when backend: copilot_cli (Copilot's own model catalog names, or
+  # omit/null to let it auto-pick).
+  copilot_runner_model: null
+  copilot_fixer_model: null
+
+  # Used when backend: langgraph.
   runner_model: anthropic:claude-haiku-4-5   # cheap/fast - just drives MCP tool calls
   fixer_model: anthropic:claude-sonnet-4-5   # stronger - writes the actual patch
 

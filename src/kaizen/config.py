@@ -57,14 +57,27 @@ class GateConfig(BaseModel):
 
 
 class ModelConfig(BaseModel):
-    """Per-role model selection, provider-agnostic via LangChain's
-    ``"provider:model"`` string format (e.g. ``"anthropic:claude-sonnet-4-5"``,
-    ``"openai:gpt-4.1"``, ``"ollama:llama3.1"``). Lets the cheap Runner role
-    and the stronger Fixer role use different models/providers.
+    """Per-role model/backend selection.
+
+    backend: "langgraph" (direct provider API calls - needs an API key per
+        provider; set via ``runner_model``/``fixer_model`` as a
+        ``"provider:model"`` string) or "copilot_cli" (shells out to the
+        already-authenticated GitHub Copilot CLI - no separate API key
+        needed; set via ``copilot_runner_model``/``copilot_fixer_model``
+        using Copilot's own model catalog names, e.g. "claude-sonnet-4.5",
+        or "auto"). Pick per project depending on what's available; swap
+        later with no code changes once a direct LLM deployment exists.
     """
 
+    backend: str = "langgraph"  # "langgraph" | "copilot_cli"
+
+    # Used when backend == "langgraph".
     runner_model: str = "anthropic:claude-haiku-4-5"
     fixer_model: str = "anthropic:claude-sonnet-4-5"
+
+    # Used when backend == "copilot_cli". None lets Copilot auto-pick.
+    copilot_runner_model: str | None = None
+    copilot_fixer_model: str | None = None
 
 
 class KaizenConfig(BaseModel):

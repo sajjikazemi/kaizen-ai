@@ -75,21 +75,32 @@ et al. 2009; Rothermel & Harrold 1996; Yoo & Harman 2012; Cochran 1977).
 | 2 — code | application source code | always required |
 | 3 — locked | secrets, infra, CI/CD config | Fixer may never modify |
 
-## Agent runtime: LangGraph (provider-agnostic)
+## Agent runtime: two swappable backends
 
-Runner and Fixer are built on **LangGraph** (via `langchain.agents.create_agent`),
-not a single vendor's SDK — `kaizen.yaml` selects each role's model with a
-plain `"provider:model"` string (`model.runner_model`, `model.fixer_model`),
-so Anthropic, OpenAI, Bedrock, or a local model are all a one-line config
-change, not a code change.
+Runner and Fixer each delegate to a **backend**, picked per project via
+`model.backend` in `kaizen.yaml` — nothing else in the codebase needs to
+change to switch:
 
-- **Runner** connects to the target's MCP server via `langchain-mcp-adapters`
-  and drives `task_prompt` eval cases with whatever model you configure
-  (a cheap/fast one is usually enough here).
-- **Fixer** uses `Read`/`Write`/`Edit`/`Bash` tools (`fixer/tools.py`), with
-  Tier-3 paths hard-blocked in the tool itself, and Tier-2 (application code)
-  writes gated through LangGraph's `HumanInTheLoopMiddleware` — an approval
-  pause *in addition to* the PR review that always happens afterward.
+| Backend | How it works | When to use |
+|---|---|---|
+| `copilot_cli` (default) | Shells out to the already-authenticated **GitHub Copilot CLI** (`copilot -p ...`, non-interactive mode) — each call is a fresh/isolated session (or a resumed one via `--session-id` for follow-ups), using the operator's existing Copilot subscription | No separate LLM API key/deployment available yet |
+| `langgraph` | Direct provider API calls via **LangGraph** (`langchain.agents.create_agent`), model picked with LangChain's `"provider:model"` string (`model.runner_model`/`model.fixer_model`) | Once a direct Anthropic/OpenAI/Bedrock/local-model deployment exists |
+
+Both live behind a thin dispatcher (`runner/mcp_task.py`, `fixer/dispatch.py`)
+so `FixerAgent`/`RunnerAgent`, tiering, evaluation, and the PR gate are
+identical either way.
+
+- **Runner** connects to the target's MCP server (via `langchain-mcp-adapters`
+  for the `langgraph` backend, or Copilot CLI's own `--additional-mcp-config`
+  for `copilot_cli`) and drives `task_prompt` eval cases.
+- **Fixer** edits files via `Read`/`Write`/`Edit`/`Bash`. Tier-3 enforcement
+  differs slightly by backend:
+  - `langgraph`: hard-blocked in the tool itself (`fixer/tools.py`), plus
+    Tier-2 writes pause for approval via `HumanInTheLoopMiddleware`.
+  - `copilot_cli`: the CLI has no per-tool-call hook, so Tier-3 is enforced
+    **post-hoc** — after the session, any Tier-3 file in the diff is
+    hard-reverted (`fixer/git_tier_guard.py`) before anything reaches the PR.
+  Either way, Tier-2/3 changes always still require human review at the PR.
 
 ### Where do the reports/tables actually show up?
 
@@ -106,6 +117,11 @@ change, not a code change.
 
 ### Running LangGraph Studio
 
+Note: Studio visualizes the **`langgraph` backend's** Fixer graph specifically
+— there's no graph to visualize when `model.backend: copilot_cli` is active
+(it's a plain subprocess call), so Studio is only useful if you've switched
+a project to `langgraph`.
+
 ```bash
 cp .env.example .env        # fill in ANTHROPIC_API_KEY / OPENAI_API_KEY etc.
 export KAIZEN_CONFIG=/path/to/your/project/kaizen.yaml   # optional, defaults to the bundled example
@@ -115,6 +131,12 @@ This opens LangGraph Studio against the **Fixer** graph (`kaizen.graphs:fixer_gr
 declared in `langgraph.json`) — you can send it a prompt, watch each tool
 call, and approve/reject Tier-2 code edits visually instead of (or in
 addition to) the CLI's `y/N` prompt.
+
+### Prerequisite for the `copilot_cli` backend
+
+Install the [GitHub Copilot CLI](https://docs.github.com/copilot/how-tos/use-copilot-agents/use-copilot-cli)
+and run `copilot /login` once on the machine running Kaizen. No `.env`/API
+key needed for this backend — it uses that login session.
 
 ## Development
 

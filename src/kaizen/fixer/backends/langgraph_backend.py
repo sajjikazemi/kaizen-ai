@@ -67,15 +67,19 @@ def build_fixer_agent(
     )
 
 
-async def run_fix_session(prompt: str, config: KaizenConfig) -> list[str]:
+async def run_fix_session(prompt: str, config: KaizenConfig, session_id: str | None = None) -> list[str]:
     """Runs the Fixer agent on `prompt`; resolves any Tier-2 approval
     interrupts via a console y/n prompt. Returns the list of touched files.
+
+    `session_id`, if given, is reused as the LangGraph thread id (so a
+    retry/follow-up continues the same conversation) - otherwise a fresh one
+    is generated, matching the Copilot CLI backend's session semantics.
     """
     touched_files: list[str] = []
     agent = build_fixer_agent(
         config.model.fixer_model, config.repo_path, touched_files, checkpointer=InMemorySaver()
     )
-    thread_config = {"configurable": {"thread_id": f"fixer-{id(touched_files)}"}}
+    thread_config = {"configurable": {"thread_id": session_id or f"fixer-{id(touched_files)}"}}
 
     result = await agent.ainvoke({"messages": [{"role": "user", "content": prompt}]}, config=thread_config)
 
