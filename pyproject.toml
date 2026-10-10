@@ -3,6 +3,7 @@ name = "kaizen_ai"
 version = "0.1.0"
 description = "MCP-native agent framework for closed-loop, self-improving software testing and maintenance."
 authors = ["Sajjad Kazemi <sajjadkazemi.e@gmail.com>"]
+license = "MIT"
 readme = "README.md"
 packages = [{ include = "kaizen", from = "src" }]
 
