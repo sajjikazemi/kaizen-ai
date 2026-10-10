@@ -25,6 +25,9 @@ scipy = "^1.13"
 pytest = "^8.3"
 pytest-asyncio = "^0.24"
 ruff = "^0.7"
+mypy = "^1.13"
+types-pyyaml = "^6.0"
+pre-commit = "^4.0"
 langgraph-cli = { extras = ["inmem"], version = "^0.4" }
 
 [tool.poetry.scripts]
@@ -39,3 +42,27 @@ build-backend = "poetry.core.masonry.api"
 # deliberately-failing test fixture (the quickstart's sample project) that
 # shouldn't be swept into `pytest` runs at the repo root.
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+# E/F: pyflakes + pycodestyle errors. I: import sorting. UP: pyupgrade
+# (modern syntax for the declared python version). B: bugbear (common
+# correctness footguns). SIM: flake8-simplify. C4: comprehension cleanups.
+select = ["E", "F", "I", "UP", "B", "SIM", "C4"]
+
+[tool.mypy]
+# This is the syntax mypy itself is willing to parse, not a statement about
+# our supported runtime (that's `python = "^3.11"` above, enforced by ruff's
+# target-version too). Pinned to 3.12 because numpy's bundled stubs (pulled
+# in transitively via scipy) use syntax that only parses under 3.12+; we
+# don't write PEP 695 syntax ourselves, so this has no practical effect on
+# catching 3.11-incompatible code of our own.
+python_version = "3.12"
+ignore_missing_imports = true
+# Most third-party deps here (langgraph, langchain, azure-identity, ...)
+# ship incomplete/evolving stubs - full strict mode would mostly flag their
+# gaps, not ours. This still catches real type errors in our own code.
+check_untyped_defs = true

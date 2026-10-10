@@ -50,11 +50,12 @@ def _api_key_from_env() -> str:
 def build_azure_chat_model(azure: AzureModelConfig, deployment: str) -> Any:
     if azure.use_responses_api:
         from langchain_openai import ChatOpenAI
+        from pydantic import SecretStr
 
         api_key = _api_key_from_env() if azure.auth_mode == "api_key" else _responses_api_token()
         return ChatOpenAI(
             base_url=azure.endpoint.rstrip("/") + "/openai/v1/",
-            api_key=api_key,
+            api_key=SecretStr(api_key),
             model=deployment,
             use_responses_api=True,
         )

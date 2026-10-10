@@ -33,7 +33,7 @@ class EvalSuite(BaseModel):
     cases: list[EvalCase]
 
     @classmethod
-    def load(cls, path: str | Path) -> "EvalSuite":
+    def load(cls, path: str | Path) -> EvalSuite:
         p = Path(path)
         if p.is_dir():
             cases: list[EvalCase] = []

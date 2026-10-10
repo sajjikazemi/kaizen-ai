@@ -189,7 +189,10 @@ def fix(config_path: str, open_pr: bool):
             plan = fixer.propose_fix(record)
         except FixerSessionError as exc:
             console.print(f"  [red]Fixer session failed:[/] {exc}")
-            console.print("  [yellow]Branch abandoned; returning to base branch. Set KAIZEN_DEBUG=1 for the full trace.[/]")
+            console.print(
+                "  [yellow]Branch abandoned; returning to base branch. "
+                "Set KAIZEN_DEBUG=1 for the full trace.[/]"
+            )
             if _debug_enabled():
                 console.print_exception()
             _abandon_branch(config)
@@ -329,7 +332,10 @@ def _interactive_chat(config_path: str | None, case_id: str | None) -> None:
             if not user_input:
                 continue
             if user_input in ("/exit", "/quit"):
-                console.print("[yellow]Leaving chat - branch left as-is; run `kaizen` again for this case to resume.[/]")
+                console.print(
+                    "[yellow]Leaving chat - branch left as-is; "
+                    "run `kaizen` again for this case to resume.[/]"
+                )
                 return
             if user_input == "/abandon":
                 _abandon_branch(config)

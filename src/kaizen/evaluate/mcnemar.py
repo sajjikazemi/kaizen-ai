@@ -68,7 +68,7 @@ def mcnemar_test(table: ContingencyTable, alpha: float = 0.05) -> McNemarResult:
     from scipy.stats import binomtest
 
     discordant = table.fixed + table.regressed
-    if discordant == 0:
+    if discordant == 0:  # noqa: SIM108 - ternary form here reads worse, not better
         p_value = 1.0
     else:
         p_value = binomtest(table.fixed, discordant, p=0.5, alternative="two-sided").pvalue

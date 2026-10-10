@@ -61,7 +61,9 @@ def build_fixer_agent(
         tools,
         system_prompt=FIXER_SYSTEM_PROMPT,
         middleware=middleware,
-        **kwargs,
+        **kwargs,  # type: ignore[call-overload]  # conditionally omitting `checkpointer`
+        # (vs. passing it as None) is intentional - see the docstring above - but defeats
+        # create_agent's static overload resolution.
     )
 
 

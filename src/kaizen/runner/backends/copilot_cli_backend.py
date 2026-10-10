@@ -20,6 +20,7 @@ async def run_mcp_task(case: EvalCase, config: KaizenConfig) -> tuple[str, bool,
             f"Eval case {case.id!r} uses task_prompt but no mcp_server is configured "
             f"in kaizen.yaml for project {config.project_name!r}"
         )
+    assert case.task_prompt is not None  # caller only dispatches here for task_prompt cases
 
     result = await run_copilot_prompt_async(
         with_system_prompt(RUNNER_SYSTEM_PROMPT, case.task_prompt),

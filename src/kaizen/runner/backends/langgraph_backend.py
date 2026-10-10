@@ -55,4 +55,3 @@ async def run_mcp_task(case: EvalCase, config: KaizenConfig) -> tuple[str, bool,
     if case.expect_output_contains:
         success = success and all(needle in full_text for needle in case.expect_output_contains)
     return full_text, success, tool_errors
-

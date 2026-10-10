@@ -54,6 +54,7 @@ class RunnerAgent:
         return record
 
     def _run_command_case(self, case: EvalCase) -> TraceRecord:
+        assert case.command is not None  # caller only dispatches here for command cases
         result = self.adapter.run(case.command)
         errors = self.adapter.parse_errors(result)
         success = result.exit_code == case.expect_exit_code and all(

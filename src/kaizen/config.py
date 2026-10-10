@@ -138,6 +138,6 @@ class KaizenConfig(BaseModel):
     trace_store_path: str = ".kaizen/traces.jsonl"
 
     @classmethod
-    def load(cls, path: str | Path) -> "KaizenConfig":
+    def load(cls, path: str | Path) -> KaizenConfig:
         data = yaml.safe_load(Path(path).read_text(encoding="utf-8"))
         return cls.model_validate(data)

@@ -33,7 +33,9 @@ def open_chat_session(config: KaizenConfig, session_id: str | None = None):
     follow-up messages continue the same conversation instead of starting a
     fresh one-shot session each time."""
     if config.model.backend == "copilot_cli":
-        from kaizen.fixer.backends.copilot_cli_backend import CopilotCliFixerSession as _Session
-    else:
-        from kaizen.fixer.backends.langgraph_backend import LangGraphFixerSession as _Session
-    return _Session(config, session_id)
+        from kaizen.fixer.backends.copilot_cli_backend import CopilotCliFixerSession
+
+        return CopilotCliFixerSession(config, session_id)
+    from kaizen.fixer.backends.langgraph_backend import LangGraphFixerSession
+
+    return LangGraphFixerSession(config, session_id)

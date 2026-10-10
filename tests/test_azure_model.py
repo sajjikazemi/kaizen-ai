@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from pydantic import SecretStr
 
 from kaizen.azure_model import build_azure_chat_model, resolve_model
 from kaizen.config import AzureModelConfig, ModelConfig
@@ -53,7 +54,7 @@ def test_build_azure_chat_model_responses_api_uses_aad_token_by_default():
         fake_credential.get_token.assert_called_once_with("https://ai.azure.com/.default")
         chat_openai.assert_called_once_with(
             base_url="https://x.openai.azure.com/openai/v1/",
-            api_key="fake-aad-token",
+            api_key=SecretStr("fake-aad-token"),
             model="gpt-4o-mini",
             use_responses_api=True,
         )
@@ -79,7 +80,7 @@ def test_build_azure_chat_model_responses_api_key_mode_uses_env_var(monkeypatch)
         build_azure_chat_model(azure, "gpt-4o-mini")
         chat_openai.assert_called_once_with(
             base_url="https://x.openai.azure.com/openai/v1/",
-            api_key="secret-123",
+            api_key=SecretStr("secret-123"),
             model="gpt-4o-mini",
             use_responses_api=True,
         )
