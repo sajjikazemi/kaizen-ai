@@ -5,6 +5,15 @@ description = "Autonomous agent that finds failing tests, proposes fixes, and op
 authors = ["Sajjad Kazemi <sajjadkazemi.e@gmail.com>"]
 license = "MIT"
 readme = "README.md"
+homepage = "https://github.com/sajjikazemi/kaizen-ai"
+repository = "https://github.com/sajjikazemi/kaizen-ai"
+keywords = ["ai-agents", "llm", "self-healing", "langgraph", "mcp", "automated-testing"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Testing",
+    "Topic :: Software Development :: Quality Assurance",
+]
 packages = [{ include = "kaizen", from = "src" }]
 
 [tool.poetry.dependencies]
