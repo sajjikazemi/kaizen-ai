@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "kaizen_ai"
 version = "0.1.0"
-description = "MCP-native agent framework for closed-loop, self-improving software testing and maintenance."
+description = "Autonomous agent that finds failing tests, proposes fixes, and opens gated pull requests for human review."
 authors = ["Sajjad Kazemi <sajjadkazemi.e@gmail.com>"]
 license = "MIT"
 readme = "README.md"

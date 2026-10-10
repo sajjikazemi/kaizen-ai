@@ -1,15 +1,18 @@
 # KaizenAI
 
-**Kaizen (改善)**: continuous, incremental improvement. This repo is a
-Python, MCP-native agent framework for closed-loop, self-improving software
-testing and maintenance — built so it can be pointed at *any* project
-without changes to the framework itself.
+**Kaizen (改善)**: continuous, incremental improvement. KaizenAI is an
+autonomous agent that finds failing tests, proposes the smallest fix, and
+opens a gated pull request for human review — it never commits directly.
+Built so it can be pointed at *any* project without changes to the
+framework itself.
 
 ## How it works
 
-1. **Runner agent** connects to a target project (via shell commands and/or
-   its MCP server) and executes that project's **eval suite** — a small set
-   of representative tasks with clear pass/fail criteria.
+1. **Runner agent** connects to a target project — via shell commands
+   and/or [MCP](https://modelcontextprotocol.io) (the open protocol both
+   agents use to access a project's tools) — and executes that project's
+   **eval suite**: a small set of representative tasks with clear pass/fail
+   criteria.
 2. Every result (pass or fail) is written to a structured **trace store**
    (JSONL), including which prompt/tool-schema version produced it.
 3. **Fixer agent** reads failing traces and proposes the smallest possible
