@@ -8,7 +8,7 @@ import click
 from rich.console import Console
 from rich.table import Table
 
-from kaizen.adapters.dotnet import DotnetAdapter
+from kaizen.adapters import get_adapter
 from kaizen.baseline.store import BaselineSnapshot, BaselineStore
 from kaizen.config import KaizenConfig, PatchTier
 from kaizen.evals.schema import EvalSuite
@@ -30,7 +30,7 @@ def _load(config_path: str):
         config.eval_suite_path if _is_abs_like(config.eval_suite_path) else
         f"{config.repo_path}/{config.eval_suite_path}"
     )
-    adapter = DotnetAdapter(config.repo_path)
+    adapter = get_adapter(config)
     trace_store = TraceStore(f"{config.repo_path}/{config.trace_store_path}")
     return config, suite, adapter, trace_store
 

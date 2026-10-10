@@ -33,3 +33,9 @@ kaizen = "kaizen.cli:main"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+# Scope discovery to this project's own test suite - examples/ holds a
+# deliberately-failing test fixture (the quickstart's sample project) that
+# shouldn't be swept into `pytest` runs at the repo root.
+testpaths = ["tests"]

@@ -1,0 +1,5 @@
+id: tests-pass
+description: All pytest tests in the project pass.
+command: ["pytest"]
+expect_exit_code: 0
+tags: [calculator]

@@ -1,0 +1,31 @@
+# Quickstart example: a tiny, self-contained Python project with one
+# deliberately broken function (see calculator.py). Point `kaizen` at this
+# file to see the whole loop run end to end with zero extra setup:
+#
+#   kaizen run --config examples/sample_python_project/kaizen.yaml
+#   kaizen fix --config examples/sample_python_project/kaizen.yaml
+#
+# (run from the root of this repo, so the relative `repo_path` below
+# resolves - point it at an absolute path for a real target project)
+project_name: sample-python-project
+repo_path: examples/sample_python_project
+eval_suite_path: evals
+
+adapter:
+  name: pytest
+
+gate:
+  base_branch: master
+  branch_prefix: kaizen/fix
+  require_review_for: [tier_2_code, tier_3_locked]
+  auto_apply_tiers: []   # empty = every PR needs a human, even tier 1
+
+# See examples/sample_dotnet_project/kaizen.yaml for the full set of
+# model/backend options (Azure OpenAI, Copilot CLI, etc.) - defaults here
+# keep the quickstart to a single required env var.
+model:
+  backend: langgraph
+  runner_model: anthropic:claude-haiku-4-5
+  fixer_model: anthropic:claude-sonnet-4-5
+
+trace_store_path: .kaizen/traces.jsonl

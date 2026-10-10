@@ -3,7 +3,7 @@
 # Place a copy of this file at the root of each project you want Kaizen to
 # run against, then: `kaizen run --config kaizen.yaml`
 project_name: sample-dotnet-project
-repo_path: /home/sajji/proj/SomeDotnetRepo
+repo_path: /path/to/your-dotnet-project
 eval_suite_path: evals/example-suite.yaml
 
 adapter:
@@ -16,7 +16,7 @@ adapter:
 mcp_server:
   command: dotnet
   args: ["run", "--project", "src/SomeDotnetRepo.McpServer"]
-  cwd: /home/sajji/proj/SomeDotnetRepo
+  cwd: /path/to/your-dotnet-project
 
 gate:
   base_branch: main

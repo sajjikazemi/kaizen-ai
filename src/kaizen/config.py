@@ -38,9 +38,17 @@ class McpServerConfig(BaseModel):
 
 
 class AdapterConfig(BaseModel):
-    """Which language/build adapter to use for shelling out to the project."""
+    """Which language/build adapter to use for shelling out to the project.
 
-    name: str = "dotnet"  # e.g. "dotnet", "generic"
+    Built in: "dotnet" (parses `dotnet build`/`dotnet test` output) and
+    "pytest" (parses pytest's short test summary). Each eval case's own
+    `command` is what actually runs - this just selects which adapter
+    parses that command's output into structured errors. Add a new
+    language by implementing `ProjectAdapter` and registering it in
+    `kaizen.adapters`.
+    """
+
+    name: str = "dotnet"  # "dotnet" | "pytest"
     build_command: list[str] = Field(default_factory=lambda: ["dotnet", "build"])
     test_command: list[str] = Field(default_factory=lambda: ["dotnet", "test"])
 

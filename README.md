@@ -32,12 +32,47 @@ Trace store (structured failures)
 Fixer ──proposes patch──▶ git branch ──▶ PR ──▶ Human review ──▶ merge
 ```
 
+## Quickstart (5 minutes, no target project of your own needed)
+
+This repo ships `examples/sample_python_project/` — a tiny, self-contained
+project with one deliberately broken function — so you can watch the
+Runner catch a real failure with zero setup:
+
+```bash
+git clone https://github.com/sajjikazemi/kaizen-ai.git
+cd kaizen-ai
+poetry install
+
+poetry run kaizen run --config examples/sample_python_project/kaizen.yaml
+```
+
+That runs `pytest` against the example project and reports one failing
+case — `subtract()` has a bug (see `calculator.py`). No API key needed for
+this step.
+
+To see the **Fixer** actually propose a patch, you'll need an LLM key
+(`cp .env.example .env`, fill in `ANTHROPIC_API_KEY`/`OPENAI_API_KEY`, or
+log into the GitHub Copilot CLI — see below) and then:
+
+```bash
+poetry run kaizen fix --config examples/sample_python_project/kaizen.yaml
+```
+
+**Heads up:** since the example lives inside this repo rather than a
+separate one, `kaizen fix` checks out a real `kaizen/fix/...` branch *in
+your `kaizen-ai` clone* (that's how it behaves against any target repo).
+Skip `--open-pr` to just inspect the diff, or try this against a scratch
+clone if you'd rather not touch your working branch.
+
 ## Adding a new target project
 
-1. Add a `kaizen.yaml` to the target repo (see
-   `examples/sample_dotnet_project/kaizen.yaml`).
+1. Add a `kaizen.yaml` to the target repo and pick an adapter —
+   `dotnet` (see `examples/sample_dotnet_project/kaizen.yaml`) or
+   `pytest` (see `examples/sample_python_project/kaizen.yaml`). Add a new
+   language by implementing `ProjectAdapter` (`src/kaizen/adapters/base.py`)
+   and registering it in `src/kaizen/adapters/__init__.py`.
 2. Add an `evals/` directory with one `*.eval.yaml` file per case, tagged
-   by feature area (see `examples/sample_dotnet_project/evals/`).
+   by feature area (see either example's `evals/`).
 3. Run:
    ```bash
    kaizen baseline --config path/to/kaizen.yaml      # cache ground-truth (run on a cadence, e.g. nightly)
@@ -156,7 +191,7 @@ poetry run pytest
 
 ## Status
 
-Core pieces (eval schema, trace store, .NET adapter, tiering, PR gate,
-treatment/control evaluation, LangGraph-based Runner/Fixer agents, Studio
-wiring) are implemented and tested. Ready to exercise end-to-end once
-pointed at a real target project with API keys configured.
+Core pieces (eval schema, trace store, .NET/pytest adapters, tiering, PR
+gate, treatment/control evaluation, LangGraph-based Runner/Fixer agents,
+Studio wiring) are implemented and tested. Try the bundled quickstart
+above, or point it at a real target project with API keys configured.
