@@ -18,6 +18,7 @@ from kaizen.evaluate.split_report import evaluate as run_evaluation
 from kaizen.fixer.agent import FixerAgent, PatchPlan, build_fix_prompt
 from kaizen.fixer.errors import FixerSessionError
 from kaizen.fixer.tiering import classify_tier
+from kaizen.init import detect_adapter, scaffold
 from kaizen.runner.agent import RunnerAgent
 from kaizen.trace.store import TraceStore
 
@@ -87,6 +88,43 @@ def main(ctx: click.Context, config_path: str | None, case_id: str | None):
     if ctx.invoked_subcommand is not None:
         return
     _interactive_chat(config_path, case_id)
+
+
+@main.command()
+@click.argument("path", type=click.Path(exists=True, file_okay=False), default=".")
+@click.option(
+    "--adapter", type=click.Choice(["dotnet", "pytest"]), default=None,
+    help="Override auto-detection.",
+)
+@click.option("--force", is_flag=True, help="Overwrite an existing kaizen.yaml.")
+def init(path: str, adapter: str | None, force: bool):
+    """Scaffold a kaizen.yaml (+ one starter eval case) for a target project.
+
+    Auto-detects the adapter from well-known project files directly under
+    PATH (pyproject.toml/setup.py/pytest.ini -> pytest, *.csproj/*.sln ->
+    dotnet) unless --adapter is given, and the gate's base_branch from git.
+    Writes a single catch-all case that runs the whole test suite - a
+    starting point to edit, not a finished tagged eval suite (see the
+    README's "Adding a new target project" section).
+    """
+    target = Path(path)
+    kaizen_yaml = target / "kaizen.yaml"
+    if kaizen_yaml.exists() and not force:
+        console.print(f"[red]{kaizen_yaml} already exists.[/] Pass --force to overwrite.")
+        raise SystemExit(1)
+
+    detected = adapter or detect_adapter(target)
+    if detected is None:
+        console.print(
+            f"[red]Couldn't detect a project type under {target.resolve()}.[/] "
+            "No pyproject.toml/setup.py/pytest.ini (pytest) or *.csproj/*.sln "
+            "(dotnet) found there. Pass --adapter explicitly."
+        )
+        raise SystemExit(1)
+
+    written = scaffold(target, detected)
+    console.print(f"[green]Wrote {written}[/] (adapter={detected})")
+    console.print(f"Next: [cyan]kaizen run --config {written}[/]")
 
 
 @main.command()

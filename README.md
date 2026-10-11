@@ -70,13 +70,32 @@ clone if you'd rather not touch your working branch.
 
 ## Adding a new target project
 
+Fast path - `kaizen init [path]` auto-detects the adapter (pyproject.toml
+→ `pytest`, `*.csproj`/`*.sln` → `dotnet`) and the git default branch,
+then scaffolds a `kaizen.yaml` + one catch-all eval case that runs the
+whole test suite:
+
+```bash
+kaizen init path/to/target/project
+kaizen run --config path/to/target/project/kaizen.yaml
+```
+
+That gets you a working pass/fail signal immediately - it's a starting
+point, not a finished eval suite (see step 2 below). `--adapter` overrides
+detection; `--force` overwrites an existing `kaizen.yaml`.
+
+Manual setup, or to go beyond the single catch-all case:
+
 1. Add a `kaizen.yaml` to the target repo and pick an adapter —
    `dotnet` (see `examples/sample_dotnet_project/kaizen.yaml`) or
    `pytest` (see `examples/sample_python_project/kaizen.yaml`). Add a new
    language by implementing `ProjectAdapter` (`src/kaizen/adapters/base.py`)
    and registering it in `src/kaizen/adapters/__init__.py`.
 2. Add an `evals/` directory with one `*.eval.yaml` file per case, tagged
-   by feature area (see either example's `evals/`).
+   by feature area (see either example's `evals/`) - this is what the
+   statistical treatment/control gate uses to decide what else to re-test
+   alongside a failing case, so it's worth curating beyond `kaizen init`'s
+   single catch-all.
 3. Run:
    ```bash
    kaizen baseline --config path/to/kaizen.yaml      # cache ground-truth (run on a cadence, e.g. nightly)
