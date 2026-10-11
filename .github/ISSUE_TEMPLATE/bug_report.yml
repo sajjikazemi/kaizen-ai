@@ -1,0 +1,35 @@
+name: Bug report
+description: Something doesn't work the way it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected instead, too.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal kaizen.yaml / eval case / command that triggers it, if applicable.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: kaizen_ai version
+      description: Output of `pip show kaizen_ai`, or the commit SHA if running from source.
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Backend
+      options:
+        - langgraph
+        - copilot_cli
+        - not applicable
+    validations:
+      required: false

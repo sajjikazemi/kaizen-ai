@@ -1,5 +1,9 @@
 # KaizenAI
 
+[![CI](https://github.com/sajjikazemi/kaizen-ai/actions/workflows/ci.yml/badge.svg)](https://github.com/sajjikazemi/kaizen-ai/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/kaizen_ai)](https://pypi.org/project/kaizen-ai/)
+[![License: MIT](https://img.shields.io/pypi/l/kaizen_ai)](LICENSE)
+
 **Kaizen (改善)**: continuous, incremental improvement. KaizenAI is an
 autonomous agent that finds failing tests, proposes the smallest fix, and
 opens a gated pull request for human review — it never commits directly.
