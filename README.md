@@ -36,6 +36,35 @@ Trace store (structured failures)
 Fixer ──proposes patch──▶ git branch ──▶ PR ──▶ Human review ──▶ merge
 ```
 
+### Eval case types
+
+An eval case is exactly one of these three, in increasing order of cost
+and decreasing order of determinism:
+
+| Type | What it does | When to use |
+|---|---|---|
+| `command` | Runs a shell command (`dotnet test`, `pytest`), parses output via the configured adapter | Default choice - deterministic, no LLM, fast |
+| `mcp_tool_call` | One scripted call to a tool on the target's MCP server (`tool` + `arguments`), checked against the raw result (`isError`, content) | Testing an MCP server directly - isolates one tool's behavior without an agent's reasoning in the way |
+| `task_prompt` | A natural-language task handed to an LLM agent connected over MCP | Behavior that isn't a simple pass/fail call - slower, less reproducible, needs a model |
+
+```yaml
+# command
+- id: tests-pass
+  command: ["pytest"]
+  expect_exit_code: 0
+
+# mcp_tool_call
+- id: search-tool-returns-results
+  mcp_tool_call:
+    tool: search
+    arguments: {query: "test"}
+  expect_output_contains: ["results"]
+
+# task_prompt
+- id: can-provision-a-device
+  task_prompt: "Provision a new device via the API and confirm it appears in the device list."
+```
+
 ## Quickstart (5 minutes, no target project of your own needed)
 
 This repo ships `examples/sample_python_project/` — a tiny, self-contained
